@@ -1,7 +1,8 @@
-import { useAccount, useWriteContract, useWaitForTransactionReceipt, useWatchContractEvent } from 'wagmi'
+import { useAccount, useWriteContract, useWaitForTransactionReceipt } from 'wagmi'
+import { decodeEventLog } from 'viem'
 import { CONTRACT_ADDRESS } from '../config/wagmi'
 import RPS from '../contracts/RPS.json'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 
 const CHOICE_LABEL = { 1: '✊ 바위', 2: '🖐️ 보', 3: '✌️ 가위' }
 const RESULT_LABEL = { 1: '🎉 승리!', 2: '😢 패배...', 3: '🤝 무승부' }
@@ -11,35 +12,34 @@ export function RevealMove() {
   const [gameResult, setGameResult] = useState(null)
 
   const { writeContract, data: txHash, isPending, isError, error } = useWriteContract()
-  const { isLoading: isConfirming, isSuccess: isConfirmed } =
+  const { isLoading: isConfirming, isSuccess: isConfirmed, data: receipt } =
     useWaitForTransactionReceipt({ hash: txHash })
 
-  // GameResult 이벤트 감지 → 결과 표시
-  useWatchContractEvent({
-    address: CONTRACT_ADDRESS,
-    abi: RPS,
-    eventName: 'GameResult',
-    onLogs(logs) {
-      const log = logs[0]
-      if (log?.args?.player?.toLowerCase() === address?.toLowerCase()) {
-        setGameResult({
-          playerChoice: Number(log.args.playerChoice),
-          systemChoice: Number(log.args.systemChoice),
-          result: Number(log.args.result),
-        })
-      }
-    },
-  })
+  // 트랜잭션 완료되면 영수증 로그에서 직접 결과 파싱
+  useEffect(() => {
+    if (!isConfirmed || !receipt) return
+    for (const log of receipt.logs) {
+      try {
+        const decoded = decodeEventLog({ abi: RPS, data: log.data, topics: log.topics })
+        if (decoded.eventName === 'GameResult') {
+          setGameResult({
+            playerChoice: Number(decoded.args.playerChoice),
+            systemChoice: Number(decoded.args.systemChoice),
+            result: Number(decoded.args.result),
+          })
+          break
+        }
+      } catch {}
+    }
+  }, [isConfirmed, receipt])
 
-  const handleReveal = () => {
+  function handleReveal() {
     const salt = localStorage.getItem('rps_salt_' + address)
     const move = localStorage.getItem('rps_move_' + address)
-
     if (!salt || !move) {
       alert('먼저 무브를 선택(커밋)해주세요!')
       return
     }
-
     writeContract({
       address: CONTRACT_ADDRESS,
       abi: RPS,
@@ -69,7 +69,7 @@ export function RevealMove() {
           marginTop: '1rem',
         }}
       >
-        🎲 결과 확인
+        {isPending ? '서명 대기 중...' : isConfirming ? '블록 확인 중...' : '🎲 결과 확인'}
       </button>
 
       {isPending && <p>🦊 MetaMask에서 서명해주세요...</p>}
@@ -92,9 +92,7 @@ export function RevealMove() {
       )}
 
       {isError && (
-        <p style={{ color: 'red' }}>
-          에러: {error?.shortMessage || error?.message}
-        </p>
+        <p style={{ color: 'red' }}>에러: {error?.shortMessage || error?.message}</p>
       )}
     </div>
   )
