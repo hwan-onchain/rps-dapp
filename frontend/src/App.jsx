@@ -15,9 +15,8 @@ function App() {
         ✂️ 가위바위보 dApp
       </h1>
       <p style={{ textAlign: 'center', color: '#64748b', marginBottom: '1.5rem', fontSize: '0.9rem' }}>
-        Sepolia 테스트넷
+        Base Sepolia 테스트넷
       </p>
-
       <ConnectWallet />
       <PlayerStats />
       <hr style={{ margin: '1.5rem 0', border: 'none', borderTop: '1px solid #e2e8f0' }} />
