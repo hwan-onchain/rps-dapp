@@ -1,14 +1,20 @@
 import { createConfig, http } from 'wagmi'
 import { baseSepolia } from 'wagmi/chains'
-import { injected } from 'wagmi/connectors'
+import { coinbaseWallet, injected } from 'wagmi/connectors'
+
+export const PAYMASTER_URL = 'https://api.developer.coinbase.com/rpc/v1/base-sepolia/90JipFoVJQQYrvNeYpC7dJXglsECOILI'
 
 export const config = createConfig({
   chains: [baseSepolia],
   connectors: [
+    coinbaseWallet({
+      appName: '가위바위보 dApp',
+      preference: 'smartWalletOnly',
+    }),
     injected(),
   ],
   transports: {
-    [baseSepolia.id]: http(),
+    [baseSepolia.id]: http(PAYMASTER_URL),
   },
 })
 
